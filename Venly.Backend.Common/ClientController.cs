@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Venly.Backend.Common.Authentication;
 
 namespace Venly.Backend.Common;
@@ -21,4 +23,33 @@ namespace Venly.Backend.Common;
 [Authorize(AuthenticationSchemes = SendGramAuth.BearerScheme)]
 public abstract class ClientController : BaseController
 {
+    /// <summary>
+    /// Refuses the request unless the caller has verified to at least <paramref name="tier"/>, returning the
+    /// refusal to send back or null to carry on.
+    ///
+    /// <para>
+    /// **403 and not 402 or 409**, and the reason it says so out loud: the customer is perfectly well
+    /// authenticated and the account is perfectly well formed — they are simply not permitted this yet. The
+    /// message names Tier 1 and what clears it, because a requirement discovered as a bare refusal is a
+    /// support ticket, and the rule everywhere else in this product is that a limit must be visible before it
+    /// binds rather than met by being blocked.
+    /// </para>
+    /// <para>
+    /// Read from the gateway's forwarded header, where a MISSING value is level 0 rather than "unknown, allow"
+    /// — see <see cref="CustomerVerificationGate"/>.
+    /// </para>
+    /// </summary>
+    protected IActionResult? RequireVerification(int tier, string message)
+    {
+        if (CustomerVerificationGate.IsAtLeast(HttpContext, tier))
+            return null;
+
+        return StatusCode(
+            StatusCodes.Status403Forbidden,
+            new RequestResponse<object>
+            {
+                ResponseCode = StatusCodes.Status403Forbidden,
+                ResponseMessage = message,
+            });
+    }
 }

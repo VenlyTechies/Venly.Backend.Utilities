@@ -34,6 +34,22 @@ public static class PrincipalHeaders
     public const string SourceIpHash = "X-SendGram-Source-Ip-Hash";
 
     /// <summary>
+    /// The customer's verification level — "0", "1", "2" or "3" — taken from the token's
+    /// <c>verification_tier</c> claim. Absent for a staff principal, which does not have one.
+    ///
+    /// <para>
+    /// It is forwarded so that a service which moves money can refuse an unverified account without calling
+    /// CustomerService first. The alternative is a lookup on every quote, transfer and funding attempt, on the
+    /// hot path, to answer a question the token already carries.
+    /// </para>
+    /// <para>
+    /// It is in <see cref="All"/> — scrubbed on the way in — for the obvious reason: a header that grants the
+    /// right to move money is exactly the one a caller would like to assert for themselves.
+    /// </para>
+    /// </summary>
+    public const string VerificationTier = "X-SendGram-Verification-Tier";
+
+    /// <summary>
     /// The request correlation id, produced by the gateway's CorrelationId middleware and forwarded by Ocelot
     /// like any other request header. Deliberately absent from <see cref="All"/>: unlike the four above, a
     /// caller supplying their own is legitimate — it is how a client ties its own logs to ours — so it must
@@ -44,5 +60,5 @@ public static class PrincipalHeaders
     /// <summary>
     /// The headers no caller may assert. The scrubbing middleware strips every one of these on the way in.
     /// </summary>
-    public static readonly string[] All = [Id, Type, Permission, SourceIpHash];
+    public static readonly string[] All = [Id, Type, Permission, SourceIpHash, VerificationTier];
 }
