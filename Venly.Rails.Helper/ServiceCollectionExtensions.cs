@@ -31,6 +31,15 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, opts.TimeoutSeconds));
         });
 
+        // The same RailsClient, reached through the maintenance interface as well.
+        //
+        // Resolved from the typed client the registration above created rather than registered as a second
+        // HttpClient: two clients would mean two connection pools and two timeout settings for one target,
+        // and they would drift. What the second interface buys is that a caller must ask for the WRITE
+        // capability by name — IRailsClient stays read-only, which WalletService's reconciliation relies on.
+        services.AddScoped<IRatesMaintenanceClient>(sp =>
+            (RailsClient)sp.GetRequiredService<IRailsClient>());
+
         return services;
     }
 }

@@ -17,14 +17,22 @@ namespace Venly.Rails.Helper;
 /// must reach Temporal so the activity retries, and a reconciliation that "succeeded" having fetched no balances
 /// would report Incomplete on a green schedule while the break it should have raised went unnoticed.</para>
 /// </summary>
-public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptions> options) : IRailsClient
+public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptions> options)
+    : IRailsClient, IRatesMaintenanceClient
 {
     public const string BalancesPath = "/internal/payment/rails/balances";
     public const string StatementPath = "/internal/payment/rails/statement";
     public const string BanksPath = "/internal/payment/rails/banks";
     public const string ResolveAccountPath = "/internal/payment/rails/resolve-account";
 
+    /// <summary>Not under /rails: the rate capture is its own surface, reached through
+    /// <see cref="IRatesMaintenanceClient"/> rather than the read-only rails interface.</summary>
+    public const string SnapshotRatesPath = "/internal/payment/rates/snapshot";
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    public Task<RateSnapshotSummaryResult> SnapshotRatesAsync(CancellationToken ct = default) =>
+        SendAsync<RateSnapshotSummaryResult>(HttpMethod.Post, SnapshotRatesPath, null, ct);
 
     public Task<RailsBalancesResult> GetBalancesAsync(CancellationToken ct = default) =>
         SendAsync<RailsBalancesResult>(HttpMethod.Get, BalancesPath, null, ct);
