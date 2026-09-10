@@ -29,10 +29,15 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
     /// <see cref="IRatesMaintenanceClient"/> rather than the read-only rails interface.</summary>
     public const string SnapshotRatesPath = "/internal/payment/rates/snapshot";
 
+    public const string EvaluateRateAlertsPath = "/internal/payment/rates/alerts/evaluate";
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public Task<RateSnapshotSummaryResult> SnapshotRatesAsync(CancellationToken ct = default) =>
         SendAsync<RateSnapshotSummaryResult>(HttpMethod.Post, SnapshotRatesPath, null, ct);
+
+    public Task<RateAlertRunSummaryResult> EvaluateRateAlertsAsync(CancellationToken ct = default) =>
+        SendAsync<RateAlertRunSummaryResult>(HttpMethod.Post, EvaluateRateAlertsPath, null, ct);
 
     public Task<RailsBalancesResult> GetBalancesAsync(CancellationToken ct = default) =>
         SendAsync<RailsBalancesResult>(HttpMethod.Get, BalancesPath, null, ct);

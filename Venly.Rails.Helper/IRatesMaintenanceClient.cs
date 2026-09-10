@@ -28,7 +28,26 @@ public interface IRatesMaintenanceClient
     /// </para>
     /// </summary>
     Task<RateSnapshotSummaryResult> SnapshotRatesAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks every active rate alert against the newest sample and notifies whoever it has crossed.
+    ///
+    /// <para>
+    /// Called immediately after <see cref="SnapshotRatesAsync"/>, in the SAME workflow, because it reads
+    /// what the capture just wrote — a separate schedule could interleave and evaluate a sample one tick
+    /// stale.
+    /// </para>
+    /// </summary>
+    Task<RateAlertRunSummaryResult> EvaluateRateAlertsAsync(CancellationToken ct = default);
 }
+
+/// <param name="Fired">Notifications dispatched.</param>
+/// <param name="Skipped">Alerts crossed but already told within the day.</param>
+/// <param name="Failures">One message per alert whose notification could not be sent.</param>
+public sealed record RateAlertRunSummaryResult(
+    int Fired,
+    int Skipped,
+    List<string> Failures);
 
 /// <param name="Captured">Rows written this tick.</param>
 /// <param name="Skipped">Pairs that already had a row for this minute — a re-fired tick, not a problem.</param>
