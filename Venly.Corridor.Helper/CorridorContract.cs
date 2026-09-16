@@ -1,7 +1,7 @@
 namespace Venly.Corridor.Helper;
 
 /// <summary>
-/// One route, as PaymentService's internal snapshot publishes it.
+/// One route, as WalletService's internal snapshot publishes it.
 ///
 /// <para>
 /// Codes only, unlike the customer-facing contract, which inlines the whole currency so an app can draw a

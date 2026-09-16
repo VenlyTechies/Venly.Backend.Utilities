@@ -7,12 +7,12 @@ using Venly.Backend.Common.Hmac;
 namespace Venly.Corridor.Helper;
 
 /// <summary>
-/// Reads PaymentService's corridor snapshot and answers out of memory.
+/// Reads WalletService's corridor snapshot and answers out of memory.
 ///
 /// <para>
 /// <b>Registered as a SINGLETON</b> over a named HttpClient, for the reason
 /// <c>Venly.FeatureFlag.Helper</c> documents: the cache is the point, and a scoped or transient client would
-/// refetch on every lookup. This one sits on the REGISTRATION path, so that would mean a PaymentService round
+/// refetch on every lookup. This one sits on the REGISTRATION path, so that would mean a WalletService round
 /// trip for every signup.
 /// </para>
 /// <para>
@@ -29,7 +29,7 @@ public sealed class CorridorClient(
     IOptions<CorridorClientOptions> options,
     ILogger<CorridorClient> logger) : ICorridorClient
 {
-    private const string SnapshotPath = "/internal/payment/corridors";
+    private const string SnapshotPath = "/internal/wallet/corridors";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -54,7 +54,7 @@ public sealed class CorridorClient(
 
             var fetched = await FetchAsync(ct);
 
-            // The timestamp moves even on failure, so a hard-down PaymentService is retried once per window
+            // The timestamp moves even on failure, so a hard-down WalletService is retried once per window
             // rather than on every call. _snapshot is left alone — that is the stale-if-error rule, and on a
             // cold start it leaves it null, which is the "we do not know" the interface promises.
             _fetchedAtUtc = DateTime.UtcNow;

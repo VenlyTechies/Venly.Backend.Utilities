@@ -4,10 +4,10 @@ public sealed class CorridorClientOptions
 {
     public const string SectionName = "CorridorClient";
 
-    /// <summary>PaymentService's base address. Service-to-service, so it does not go through the gateway.</summary>
+    /// <summary>WalletService's base address. Service-to-service, so it does not go through the gateway.</summary>
     public string BaseUrl { get; set; } = string.Empty;
 
-    /// <summary>Must equal PaymentService's <c>HmacSettings:Secret</c>.</summary>
+    /// <summary>Must equal WalletService's <c>HmacSettings:Secret</c>.</summary>
     public string HmacSecret { get; set; } = string.Empty;
 
     public int TimeoutSeconds { get; set; } = 5;
