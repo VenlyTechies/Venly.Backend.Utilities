@@ -25,6 +25,15 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
     public const string BanksPath = "/internal/payment/rails/banks";
     public const string ResolveAccountPath = "/internal/payment/rails/resolve-account";
 
+    public const string QuotesPath = "/internal/payment/rails/quotes";
+    public const string PayoutsPath = "/internal/payment/rails/payouts";
+    public const string ConversionsPath = "/internal/payment/rails/conversions";
+    public const string CheckoutPath = "/internal/payment/rails/checkout";
+
+    /// <summary>By OUR reference, which is what the provider echoed back as customerReference.</summary>
+    public static string RequeryPath(string ourReference) =>
+        $"{PayoutsPath}/{Uri.EscapeDataString(ourReference)}/requery";
+
     /// <summary>Not under /rails: the rate capture is its own surface, reached through
     /// <see cref="IRatesMaintenanceClient"/> rather than the read-only rails interface.</summary>
     public const string SnapshotRatesPath = "/internal/payment/rates/snapshot";
@@ -38,6 +47,26 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
 
     public Task<RateAlertRunSummaryResult> EvaluateRateAlertsAsync(CancellationToken ct = default) =>
         SendAsync<RateAlertRunSummaryResult>(HttpMethod.Post, EvaluateRateAlertsPath, null, ct);
+
+    public Task<RailsQuoteResult> GenerateQuoteAsync(
+        RailsQuoteRequestBody body, CancellationToken ct = default) =>
+        SendAsync<RailsQuoteResult>(HttpMethod.Post, QuotesPath, body, ct);
+
+    public Task<RailsPayoutAckResult> InitiatePayoutAsync(
+        RailsPayoutRequestBody body, CancellationToken ct = default) =>
+        SendAsync<RailsPayoutAckResult>(HttpMethod.Post, PayoutsPath, body, ct);
+
+    public Task<RailsPayoutAckResult> RequeryPayoutAsync(
+        string ourReference, CancellationToken ct = default) =>
+        SendAsync<RailsPayoutAckResult>(HttpMethod.Post, RequeryPath(ourReference), null, ct);
+
+    public Task<RailsConversionResult> InitiateConversionAsync(
+        RailsConversionRequestBody body, CancellationToken ct = default) =>
+        SendAsync<RailsConversionResult>(HttpMethod.Post, ConversionsPath, body, ct);
+
+    public Task<RailsCheckoutResult> CreateCheckoutAsync(
+        RailsCheckoutRequestBody body, CancellationToken ct = default) =>
+        SendAsync<RailsCheckoutResult>(HttpMethod.Post, CheckoutPath, body, ct);
 
     public Task<RailsBalancesResult> GetBalancesAsync(CancellationToken ct = default) =>
         SendAsync<RailsBalancesResult>(HttpMethod.Get, BalancesPath, null, ct);

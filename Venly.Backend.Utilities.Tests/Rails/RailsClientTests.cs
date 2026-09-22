@@ -188,17 +188,49 @@ public class RailsClientTests
         Assert.Contains("HmacSecret", ex.Message);
     }
 
+    /// <summary>
+    /// Every write on this client carries the intent it settles.
+    ///
+    /// <para>This asserted that no payout method EXISTED: "WalletService is the ledger, and a ledger that
+    /// could instruct a payment could move money without an intent." That was the right pin while the
+    /// instruction flowed the other way. WalletService owns transfers now and must instruct, so the missing
+    /// method can no longer carry the rule — but the rule itself is unchanged, and this is it.</para>
+    ///
+    /// <para>The two exemptions are named rather than inferred, so a new write that forgets an intent id fails
+    /// here instead of passing on a technicality.</para>
+    /// </summary>
     [Fact]
-    public void There_is_no_PAYOUT_on_this_client_and_that_is_deliberate()
+    public void Every_write_on_this_client_names_the_intent_it_settles()
     {
-        // WalletService is the ledger. A ledger that could instruct a payment could move money without an
-        // intent -- the instruction direction is the other way round, with PaymentService driving WalletService
-        // from provider outcomes.
-        var methods = typeof(IRailsClient).GetMethods().Select(m => m.Name).ToList();
+        // Neither moves money. A requery asks what already happened -- and is the right response to a timeout,
+        // which may have been acted on with the response lost. A quote prices a route before any intent
+        // exists, so requiring one would make the first step of a transfer impossible.
+        string[] movesNothing =
+        [
+            nameof(IRailsClient.RequeryPayoutAsync),
+            nameof(IRailsClient.GenerateQuoteAsync),
+            nameof(IRailsClient.GetBalancesAsync),
+            nameof(IRailsClient.GetStatementAsync),
+            nameof(IRailsClient.GetBanksAsync),
+            nameof(IRailsClient.ResolveAccountAsync),
+        ];
 
-        Assert.DoesNotContain(methods, m => m.Contains("Payout", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(methods, m => m.Contains("Convert", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(methods, m => m.Contains("Quote", StringComparison.OrdinalIgnoreCase));
+        var writes = typeof(IRailsClient).GetMethods()
+            .Where(m => !movesNothing.Contains(m.Name))
+            .ToList();
+
+        Assert.NotEmpty(writes);
+
+        foreach (var write in writes)
+        {
+            var body = write.GetParameters().First().ParameterType;
+
+            Assert.True(
+                body.GetProperty("IntentId") is not null,
+                $"{write.Name} moves money but its body has no IntentId. PaymentService refuses a rails write "
+                + "without one: a payout with no intent is money leaving the system with nothing in the ledger "
+                + "reserving it.");
+        }
     }
 
     [Fact]
@@ -208,6 +240,9 @@ public class RailsClientTests
         {
             RailsClient.BalancesPath, RailsClient.StatementPath,
             RailsClient.BanksPath, RailsClient.ResolveAccountPath,
+            RailsClient.QuotesPath, RailsClient.PayoutsPath,
+            RailsClient.ConversionsPath, RailsClient.CheckoutPath,
+            RailsClient.RequeryPath("REF-1"),
         })
         {
             Assert.StartsWith("/internal/payment/", path, StringComparison.Ordinal);
