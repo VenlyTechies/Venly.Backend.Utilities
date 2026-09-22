@@ -52,3 +52,23 @@ public sealed record ReconciliationRunSummary(
     short LegsCompared);
 
 public sealed record SafeguardingSnapshotSummary(string Currency, decimal Total, DateTime AsAt);
+
+public sealed record StoreRateSnapshotBody(
+    string SourceCurrency,
+    string DestinationCurrency,
+    decimal Rate,
+    decimal Fee,
+    string FeeCurrency,
+    string Provider,
+    DateTime CapturedAt);
+
+/// <param name="Stored">
+/// False where a sample for that pair and minute already existed -- a re-fired tick or a second replica.
+/// Neither is an error.
+/// </param>
+public sealed record StoreRateSnapshotResultBody(bool Stored, int MarginBps);
+
+/// <param name="Fired">Notifications dispatched.</param>
+/// <param name="Skipped">Alerts crossed but already told within the day.</param>
+/// <param name="Failures">One message per alert whose notification could not be sent.</param>
+public sealed record RateAlertRunResultBody(int Fired, int Skipped, List<string> Failures);

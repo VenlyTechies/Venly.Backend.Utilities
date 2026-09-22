@@ -22,6 +22,11 @@ public sealed class WalletMaintenanceClient(
     public const string SafeguardingPath = "/internal/wallet/reconciliation/safeguarding-snapshots";
     public const string FxPositionPath = "/internal/wallet/fx/position-snapshots";
 
+    /// <summary>The rate series moved here with the feature that reads it. See IWalletMaintenanceClient.</summary>
+    public const string StoreRateSnapshotPath = "/internal/wallet/rates/snapshot";
+
+    public const string EvaluateRateAlertsPath = "/internal/wallet/rates/alerts/evaluate";
+
     /// <summary>
     /// Web defaults, matching the camelCase JSON the services exchange. WalletService's envelope is serialised
     /// by ASP.NET's defaults, so a reader that used the framework defaults instead would find
@@ -105,6 +110,13 @@ public sealed class WalletMaintenanceClient(
         var hash = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(signingString));
         return Convert.ToBase64String(hash);
     }
+
+    public Task<StoreRateSnapshotResultBody> StoreRateSnapshotAsync(
+        StoreRateSnapshotBody body, CancellationToken ct = default) =>
+        PostAsync<StoreRateSnapshotResultBody>(StoreRateSnapshotPath, body, ct);
+
+    public Task<RateAlertRunResultBody> EvaluateRateAlertsAsync(CancellationToken ct = default) =>
+        PostAsync<RateAlertRunResultBody>(EvaluateRateAlertsPath, new { }, ct);
 
     /// <summary>
     /// Just enough of <c>RequestResponse&lt;T&gt;</c> to read the payload. Declared here rather than taking a

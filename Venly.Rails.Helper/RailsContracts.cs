@@ -45,9 +45,14 @@ public sealed record ResolveAccountRequestBody(string AccountNumber, string Bank
 // PaymentService's /internal/payment/rails surface INSTRUCTS as well as reads, now that WalletService owns
 // transfers and funding and must drive a payout through it.
 //
-// Every body that moves money carries IntentId FIRST, and PaymentService refuses one without it. The old
+// Every body that moves money OUT carries IntentId FIRST, and PaymentService refuses one without it. The old
 // surface was read-only so that nothing could pay without an intent; the rule survives the routes as a check
 // rather than as an absence, and putting the field first makes a body that lacks it obvious on sight.
+//
+// A quote, a requery and a CHECKOUT carry none, and that is the same rule rather than three exceptions to it:
+// a quote prices a route, a requery asks what already happened, and a checkout opens a page for money to come
+// IN. None of them takes money out, and a checkout could not name an intent even if asked to -- the intent is
+// created when the charge.successful webhook says the money arrived.
 
 /// <param name="IntentId">
 /// The WalletService intent this payout settles. REQUIRED: a payout with no intent is money leaving the system
@@ -96,10 +101,15 @@ public sealed record RailsConversionResult(
     decimal? Rate,
     string? FailureReason);
 
-/// <param name="IntentId">The funding intent this checkout will credit. REQUIRED.</param>
+/// <remarks>
+/// NO intent id, unlike a payout or a conversion, and the asymmetry is the rule rather than an exception. The
+/// rule is that nothing takes money OUT without an intent reserving it; a checkout is inbound. It opens a page
+/// for money to come in, reserves nothing and credits nothing — the intent is created when the
+/// <c>charge.successful</c> webhook says the money actually arrived. Requiring one here would demand an intent
+/// for a payment that may never be made.
+/// </remarks>
 /// <param name="Methods">Card only, today. The hosted page is what keeps card details out of this system.</param>
 public sealed record RailsCheckoutRequestBody(
-    string IntentId,
     string OurReference,
     string Currency,
     long AmountMinor,

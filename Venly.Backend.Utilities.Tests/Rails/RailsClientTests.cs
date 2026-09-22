@@ -202,13 +202,18 @@ public class RailsClientTests
     [Fact]
     public void Every_write_on_this_client_names_the_intent_it_settles()
     {
-        // Neither moves money. A requery asks what already happened -- and is the right response to a timeout,
-        // which may have been acted on with the response lost. A quote prices a route before any intent
-        // exists, so requiring one would make the first step of a transfer impossible.
+        // None of these takes money OUT, which is what the rule is about. A requery asks what already
+        // happened -- and is the right response to a timeout, which may have been acted on with the response
+        // lost. A quote prices a route before any intent exists, so requiring one would make the first step of
+        // a transfer impossible. And a CHECKOUT is inbound: it opens a page for money to come in, reserves
+        // nothing and credits nothing, with the intent created only when the charge.successful webhook says
+        // the money arrived -- so requiring one would demand an intent for a payment that may never be made,
+        // and funding could not satisfy it at all.
         string[] movesNothing =
         [
             nameof(IRailsClient.RequeryPayoutAsync),
             nameof(IRailsClient.GenerateQuoteAsync),
+            nameof(IRailsClient.CreateCheckoutAsync),
             nameof(IRailsClient.GetBalancesAsync),
             nameof(IRailsClient.GetStatementAsync),
             nameof(IRailsClient.GetBanksAsync),

@@ -21,6 +21,9 @@ public sealed class WalletIntentClient(
     public const string IntentsPath = "/internal/wallet/intents";
     public const string RealisationsPath = "/internal/wallet/fx/realisations";
 
+    /// <summary>Where a paid top-up is reported, for WalletService to resolve and credit.</summary>
+    public const string SettleFundingPath = "/internal/wallet/funding/settle";
+
     /// <summary>
     /// Not <c>Uri.EscapeDataString</c>. A reference is a path SEGMENT, and <see cref="Uri"/> normalises
     /// <c>%2F</c> back to a slash when it builds the request URI — so escaping a slash here would produce a path
@@ -51,6 +54,14 @@ public sealed class WalletIntentClient(
     {
         var (status, body) = await SendAsync(
             HttpMethod.Post, $"{IntentsPath}/{intentId}/confirm", new { postedBy }, ct);
+
+        return new WalletCallResult(status, Message(body));
+    }
+
+    public async Task<WalletCallResult> SettleFundingAsync(
+        SettleFundingRequest request, CancellationToken ct = default)
+    {
+        var (status, body) = await SendAsync(HttpMethod.Post, SettleFundingPath, request, ct);
 
         return new WalletCallResult(status, Message(body));
     }

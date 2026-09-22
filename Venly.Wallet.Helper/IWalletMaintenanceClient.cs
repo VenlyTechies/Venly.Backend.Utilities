@@ -29,4 +29,25 @@ public interface IWalletMaintenanceClient
 
     Task<List<SafeguardingSnapshotSummary>> GenerateSafeguardingSnapshotsAsync(
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Keeps one rate sample. The RAW provider rate — WalletService stamps the margin in force onto the row
+    /// itself, so history can later be drawn at what was actually displayed rather than at today's figure.
+    ///
+    /// <para><b>Split from the provider call on purpose.</b> Asking a provider what a route costs is
+    /// integration and stays in PaymentService, which makes the call and logs it to <c>provider_request</c>.
+    /// Keeping the answer is business state and belongs with the ledger. The workflow carries the value
+    /// between them, so a corridor whose provider is unavailable fails alone and the others still store.</para>
+    /// </summary>
+    Task<StoreRateSnapshotResultBody> StoreRateSnapshotAsync(
+        StoreRateSnapshotBody body, CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks every active rate alert against the newest sample and notifies whoever it has crossed.
+    ///
+    /// <para>Called immediately after the samples are stored, in the SAME workflow, because it reads what
+    /// the capture just wrote — a separate schedule could interleave and evaluate a sample one tick stale.
+    /// It fires on the DISPLAYED rate, since that is the number the customer set the alert against.</para>
+    /// </summary>
+    Task<RateAlertRunResultBody> EvaluateRateAlertsAsync(CancellationToken ct = default);
 }

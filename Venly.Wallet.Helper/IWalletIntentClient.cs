@@ -69,4 +69,19 @@ public interface IWalletIntentClient
     /// </param>
     Task<WalletCallResult> RecordFxRealisationAsync(
         string intentId, decimal realisedRate, string? providerReference, CancellationToken ct = default);
+
+    /// <summary>
+    /// Tells WalletService that a top-up reference has been PAID, and lets it do the crediting.
+    ///
+    /// <para><b>A fact forwarded, not an instruction assembled.</b> PaymentService's charge webhook used to
+    /// read <c>funding_request</c> itself, resolve whose money it was, and then drive two calls here to create
+    /// and confirm the intent. That row lives in the ledger's schema now, so the webhook cannot resolve a
+    /// reference to a customer at all — and a webhook handler that could would be reaching across a service
+    /// boundary into the ledger's tables.</para>
+    ///
+    /// <para>So this carries only what the PROVIDER said: which reference, how much actually arrived, in what
+    /// currency. WalletService resolves the rest. It also collapses three round trips into one.</para>
+    /// </summary>
+    Task<WalletCallResult> SettleFundingAsync(
+        SettleFundingRequest request, CancellationToken ct = default);
 }

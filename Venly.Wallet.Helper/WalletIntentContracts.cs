@@ -102,3 +102,23 @@ public sealed record CreateInternalTransferIntentRequest(
     string IdempotencyKey,
     string? CorrelationId,
     string? Narration);
+
+/// <param name="AmountMinor">
+/// What ARRIVED, in preference to what was asked for. The two can differ, and the ledger has to match the
+/// money rather than the intention — crediting the requested figure is how a balance drifts from the provider
+/// float by every fee and every part-payment.
+/// </param>
+/// <param name="ProviderReference">The provider's own handle for the charge, kept for support conversations.</param>
+/// <param name="Provider">Which rail reported it, recorded as who posted the intent.</param>
+public sealed record SettleFundingRequest(
+    string Reference,
+    long AmountMinor,
+    string Currency,
+    string? ProviderReference,
+    string Provider);
+
+/// <param name="Credited">
+/// False where nothing was posted — an unknown reference, or a redelivery of a top-up already completed.
+/// Neither is an error; both mean the caller has nothing left to do.
+/// </param>
+public sealed record SettleFundingResult(bool Credited, string? IntentId);
