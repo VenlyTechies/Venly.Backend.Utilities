@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 
 namespace Venly.Rails.Helper;
@@ -30,9 +31,14 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
     public const string ConversionsPath = "/internal/payment/rails/conversions";
     public const string CheckoutPath = "/internal/payment/rails/checkout";
 
-    /// <summary>By OUR reference, which is what the provider echoed back as customerReference.</summary>
-    public static string RequeryPath(string ourReference) =>
-        $"{PayoutsPath}/{Uri.EscapeDataString(ourReference)}/requery";
+    public const string RegistryPath = "/internal/payment/rails/registry";
+
+    /// <summary>
+    /// By OUR reference, which is what the provider echoed back as customerReference, ON THE RAIL THAT WAS
+    /// ATTEMPTED — a reference means nothing to a rail that never saw it, so the rail is not optional here.
+    /// </summary>
+    public static string RequeryPath(string rail, string ourReference) =>
+        $"{PayoutsPath}/{Uri.EscapeDataString(ourReference)}/requery?rail={Uri.EscapeDataString(rail)}";
 
     /// <summary>Not under /rails: the rate capture is its own surface, reached through
     /// <see cref="IRatesMaintenanceClient"/> rather than the read-only rails interface.</summary>
@@ -40,7 +46,18 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
 
     public const string EvaluateRateAlertsPath = "/internal/payment/rates/alerts/evaluate";
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// Web defaults PLUS the string-enum converter, which is not optional here.
+    ///
+    /// <para>Every service registers <c>JsonStringEnumConverter</c> (a convention test enforces it), so
+    /// PaymentService writes <see cref="RailsOutcome"/> as <c>"Rejected"</c> rather than <c>1</c>. Web
+    /// defaults alone would fail to read that back — and the value it would fail to read is the one failover
+    /// turns on.</para>
+    /// </summary>
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     public Task<RateSnapshotSummaryResult> SnapshotRatesAsync(CancellationToken ct = default) =>
         SendAsync<RateSnapshotSummaryResult>(HttpMethod.Post, SnapshotRatesPath, null, ct);
@@ -57,8 +74,8 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
         SendAsync<RailsPayoutAckResult>(HttpMethod.Post, PayoutsPath, body, ct);
 
     public Task<RailsPayoutAckResult> RequeryPayoutAsync(
-        string ourReference, CancellationToken ct = default) =>
-        SendAsync<RailsPayoutAckResult>(HttpMethod.Post, RequeryPath(ourReference), null, ct);
+        string rail, string ourReference, CancellationToken ct = default) =>
+        SendAsync<RailsPayoutAckResult>(HttpMethod.Post, RequeryPath(rail, ourReference), null, ct);
 
     public Task<RailsConversionResult> InitiateConversionAsync(
         RailsConversionRequestBody body, CancellationToken ct = default) =>
@@ -68,28 +85,35 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
         RailsCheckoutRequestBody body, CancellationToken ct = default) =>
         SendAsync<RailsCheckoutResult>(HttpMethod.Post, CheckoutPath, body, ct);
 
-    public Task<RailsBalancesResult> GetBalancesAsync(CancellationToken ct = default) =>
-        SendAsync<RailsBalancesResult>(HttpMethod.Get, BalancesPath, null, ct);
+    public Task<RailsBalancesResult> GetBalancesAsync(string rail, CancellationToken ct = default) =>
+        SendAsync<RailsBalancesResult>(HttpMethod.Get, $"{BalancesPath}?rail={Uri.EscapeDataString(rail)}", null, ct);
+
+    public Task<RailsRegistryResult> GetRegistryAsync(CancellationToken ct = default) =>
+        SendAsync<RailsRegistryResult>(HttpMethod.Get, RegistryPath, null, ct);
 
     public Task<List<RailsStatementLineResult>> GetStatementAsync(
-        string currency, DateOnly from, DateOnly to, CancellationToken ct = default) =>
+        string rail, string currency, DateOnly from, DateOnly to, CancellationToken ct = default) =>
         SendAsync<List<RailsStatementLineResult>>(
             HttpMethod.Get,
-            $"{StatementPath}?currency={currency}&from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}",
+            $"{StatementPath}?rail={Uri.EscapeDataString(rail)}&currency={currency}"
+                + $"&from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}",
             null,
             ct);
 
     public Task<List<RailsBankResult>> GetBanksAsync(
-        string currency, string country, CancellationToken ct = default) =>
+        string rail, string currency, string country, CancellationToken ct = default) =>
         SendAsync<List<RailsBankResult>>(
-            HttpMethod.Get, $"{BanksPath}?currency={currency}&country={country}", null, ct);
+            HttpMethod.Get,
+            $"{BanksPath}?rail={Uri.EscapeDataString(rail)}&currency={currency}&country={country}",
+            null,
+            ct);
 
     public Task<RailsAccountNameResult> ResolveAccountAsync(
-        string accountNumber, string bankCode, CancellationToken ct = default) =>
+        string rail, string accountNumber, string bankCode, CancellationToken ct = default) =>
         SendAsync<RailsAccountNameResult>(
             HttpMethod.Post,
             ResolveAccountPath,
-            new ResolveAccountRequestBody(accountNumber, bankCode),
+            new ResolveAccountRequestBody(rail, accountNumber, bankCode),
             ct);
 
     private async Task<T> SendAsync<T>(

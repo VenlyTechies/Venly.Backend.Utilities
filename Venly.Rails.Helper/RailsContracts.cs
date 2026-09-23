@@ -38,7 +38,66 @@ public sealed record RailsBankResult(string Code, string Name, string? Type);
 public sealed record RailsAccountNameResult(
     string AccountNumber, string BankCode, string AccountHolderName);
 
-public sealed record ResolveAccountRequestBody(string AccountNumber, string BankCode);
+/// <param name="Rail">Which rail is asked. WalletService picks it; there is no default to fall back on.</param>
+public sealed record ResolveAccountRequestBody(string Rail, string AccountNumber, string BankCode);
+
+/// <summary>
+/// HOW A RAIL CALL ENDED, as distinct from what the provider said about the payment.
+///
+/// <para><b>This is the value failover turns on, and getting it wrong double-pays a customer.</b>
+/// WalletService walks a corridor's rails in priority order; this says whether walking on is safe.</para>
+/// </summary>
+public enum RailsOutcome
+{
+    /// <summary>
+    /// The rail took the instruction. <see cref="RailsPayoutAckResult.Status"/> says what it then did with
+    /// it. Failover is OVER — there is nothing left to fail over to, the money is on this rail.
+    /// </summary>
+    Accepted,
+
+    /// <summary>
+    /// The rail refused BEFORE accepting anything: a refused connection, a 4xx validation, a beneficiary it
+    /// would not pay. Nothing is in flight, so the next rail down may be tried.
+    ///
+    /// <para>Only a failure the rail itself answered may be classified here. A failure we INFERRED is
+    /// <see cref="Indeterminate"/>.</para>
+    /// </summary>
+    Rejected,
+
+    /// <summary>
+    /// We do not know, and must not guess: a timeout, a 5xx, a duplicate-reference rejection. The instruction
+    /// may have been acted on with only the response lost.
+    ///
+    /// <para><b>FAILOVER STOPS HERE.</b> Trying the next rail would be instructing a second payout against an
+    /// intent whose first payout may already be settling. The intent stays reserved and the requery path owns
+    /// it — which is why a requery takes no intent id and names the rail that was attempted.</para>
+    /// </summary>
+    Indeterminate,
+}
+
+/// <summary>
+/// What every money-moving result has to carry for failover to be able to read it.
+///
+/// <para>An interface rather than a pair of delegates at the call site, because these two fields are not
+/// incidental to a payout result — they are the part WalletService acts on. A new instruction type that
+/// forgets them will not compile against <c>IRailRouter.InstructAsync</c>, which is the correct place to find
+/// out: the alternative is a result whose failure silently reads as <c>Indeterminate</c> with no reason, and
+/// stops a walk nobody could then explain.</para>
+/// </summary>
+public interface IRailsAttempt
+{
+    /// <summary>Accepted, Rejected or Indeterminate. Only Rejected permits trying the next rail.</summary>
+    RailsOutcome Outcome { get; }
+
+    /// <summary>What the rail said, where there was anything to say. Null on an accepted attempt.</summary>
+    string? FailureReason { get; }
+}
+
+/// <param name="Rails">
+/// The rail codes THIS BUILD of PaymentService carries. WalletService checks a <c>Rail.Code</c> against it
+/// when an admin creates or renames one, so a typo is refused at the write rather than at the first payout.
+/// </param>
+public sealed record RailsRegistryResult(List<string> Rails);
 
 // ---- the write surface -----------------------------------------------------------------------------
 //
@@ -64,6 +123,7 @@ public sealed record ResolveAccountRequestBody(string AccountNumber, string Bank
 /// </param>
 public sealed record RailsPayoutRequestBody(
     string IntentId,
+    string Rail,
     string OurReference,
     string SourceCurrency,
     string DestinationCurrency,
@@ -82,24 +142,29 @@ public sealed record RailsPayoutRequestBody(
 /// side.
 /// </param>
 public sealed record RailsPayoutAckResult(
+    string Rail,
+    RailsOutcome Outcome,
     string ProviderReference,
     string OurReference,
     string Status,
     bool DocumentRequired,
-    string? FailureReason);
+    string? FailureReason) : IRailsAttempt;
 
 /// <param name="IntentId">The intent whose FX leg this conversion is. REQUIRED, for the same reason.</param>
 public sealed record RailsConversionRequestBody(
     string IntentId,
+    string Rail,
     string QuoteReference,
     string OurReference);
 
 public sealed record RailsConversionResult(
+    string Rail,
+    RailsOutcome Outcome,
     string ProviderReference,
     string OurReference,
     string Status,
     decimal? Rate,
-    string? FailureReason);
+    string? FailureReason) : IRailsAttempt;
 
 /// <remarks>
 /// NO intent id, unlike a payout or a conversion, and the asymmetry is the rule rather than an exception. The
@@ -110,6 +175,7 @@ public sealed record RailsConversionResult(
 /// </remarks>
 /// <param name="Methods">Card only, today. The hosted page is what keeps card details out of this system.</param>
 public sealed record RailsCheckoutRequestBody(
+    string Rail,
     string OurReference,
     string Currency,
     long AmountMinor,
@@ -121,7 +187,7 @@ public sealed record RailsCheckoutRequestBody(
     string? Description);
 
 /// <param name="Link">The hosted page. Nothing happens until the customer reaches it.</param>
-public sealed record RailsCheckoutResult(string Link, string OurReference, string PayCode);
+public sealed record RailsCheckoutResult(string Rail, string Link, string OurReference, string PayCode);
 
 /// <summary>
 /// Prices a route. NO intent id: WalletService quotes to show a customer a number before any intent exists, so
@@ -129,6 +195,7 @@ public sealed record RailsCheckoutResult(string Link, string OurReference, strin
 /// nothing.
 /// </summary>
 public sealed record RailsQuoteRequestBody(
+    string Rail,
     string SourceCurrency,
     string DestinationCurrency,
     long SourceMinor);
@@ -137,7 +204,13 @@ public sealed record RailsQuoteRequestBody(
 /// Quotes are PERISHABLE — thirty seconds at Fincra. Carried so a caller can refuse to spend a stale one
 /// rather than discovering it at the payout.
 /// </param>
+/// <param name="Rail">
+/// The rail that priced this, carried back because <see cref="Reference"/> is MEANINGLESS anywhere else — a
+/// quote reference is a handle inside one provider. The payout that spends it must name this same rail, so
+/// failover between the quote and the payout is failover that invalidates the quote.
+/// </param>
 public sealed record RailsQuoteResult(
+    string Rail,
     string Reference,
     string SourceCurrency,
     string DestinationCurrency,
