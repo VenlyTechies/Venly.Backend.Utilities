@@ -194,11 +194,21 @@ public sealed record RailsCheckoutResult(string Rail, string Link, string OurRef
 /// requiring one would make the first step of a transfer impossible. It spends a provider call and moves
 /// nothing.
 /// </summary>
+/// <param name="Rail">The rail to price on. The caller decides; PaymentService looks nothing up.</param>
+/// <param name="SourceCurrency">What the customer pays in.</param>
+/// <param name="DestinationCurrency">What arrives.</param>
+/// <param name="SourceMinor">The amount priced, in the source currency's minor units.</param>
+/// <param name="Action">
+/// What the price is FOR: <c>"Payout"</c> (money leaving to a bank) or <c>"Conversion"</c> (a balance converting
+/// in place). Fincra prices the two differently, and a conversion executed against a payout quote is refused.
+/// Defaults to Payout so every caller written before conversions keeps its meaning.
+/// </param>
 public sealed record RailsQuoteRequestBody(
     string Rail,
     string SourceCurrency,
     string DestinationCurrency,
-    long SourceMinor);
+    long SourceMinor,
+    string Action = "Payout");
 
 /// <param name="ExpiresAt">
 /// Quotes are PERISHABLE — thirty seconds at Fincra. Carried so a caller can refuse to spend a stale one
