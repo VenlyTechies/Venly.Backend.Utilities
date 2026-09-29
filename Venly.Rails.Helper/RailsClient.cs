@@ -130,11 +130,15 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
                 + "than a missing one.");
         }
 
-        // The signature covers the PATH AND QUERY exactly as sent. Signing the path alone would fail every
-        // filtered read, because the filter hashes what it received.
+        // The signature covers the PATH WITHOUT the query string. HmacAuthorizationFilter verifies
+        // request.Path.Value, which excludes the query, and every other signer (the gateway signs AbsolutePath)
+        // agrees. Signing the query too made every filtered read -- the bank list, account resolution, the
+        // statement -- a 401, while calls with no query string passed and hid it.
         var body = payload is null ? string.Empty : JsonSerializer.Serialize(payload, Json);
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var signature = ComputeSignature(secret, timestamp, method.Method, path, body);
+        var queryAt = path.IndexOf('?');
+        var signedPath = queryAt < 0 ? path : path[..queryAt];
+        var signature = ComputeSignature(secret, timestamp, method.Method, signedPath, body);
 
         using var request = new HttpRequestMessage(method, path);
 

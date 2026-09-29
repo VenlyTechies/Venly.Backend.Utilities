@@ -42,7 +42,7 @@ public class RailsClientTests
                "rollingReserveMinor":null,"asAt":"2026-08-27T12:00:00Z"}]}}
             """);
 
-        var result = await NewClient(handler).GetBalancesAsync();
+        var result = await NewClient(handler).GetBalancesAsync("fincra");
 
         Assert.Equal("stub", result.Provider);
         var gbp = Assert.Single(result.Balances);
@@ -59,7 +59,7 @@ public class RailsClientTests
         var handler = Responding(
             """{"responseData":{"provider":"fincra","balances":[]}}""");
 
-        Assert.Equal("fincra", (await NewClient(handler).GetBalancesAsync()).Provider);
+        Assert.Equal("fincra", (await NewClient(handler).GetBalancesAsync("fincra")).Provider);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class RailsClientTests
             """{"responseData":{"provider":"stub","balances":[]}}""",
             capture: (request, _) => captured = request);
 
-        await NewClient(handler).GetBalancesAsync();
+        await NewClient(handler).GetBalancesAsync("fincra");
 
         Assert.Equal(HttpMethod.Get, captured!.Method);
         Assert.Equal("/internal/payment/rails/balances", captured.RequestUri!.AbsolutePath);
@@ -98,22 +98,24 @@ public class RailsClientTests
     }
 
     [Fact]
-    public async Task A_filtered_read_signs_the_PATH_AND_QUERY()
+    public async Task A_filtered_read_signs_the_path_WITHOUT_the_query()
     {
-        // The filter hashes what it received, so signing the path alone would fail every filtered read.
+        // HmacAuthorizationFilter verifies request.Path.Value, which excludes the query string, and so does every
+        // other signer (the gateway signs AbsolutePath). Signing the path AND query made every filtered read -- the
+        // bank list, account resolution, the statement -- a 401 in production, while a test that only compared
+        // the client with itself stayed green. So this compares with what the FILTER computes.
         HttpRequestMessage? captured = null;
         var handler = Responding("""{"responseData":[]}""", capture: (request, _) => captured = request);
 
         await NewClient(handler).GetStatementAsync(
-            "GBP", new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 27));
+            "fincra", "GBP", new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 27));
 
-        var path = captured!.RequestUri!.PathAndQuery;
+        var uri = captured!.RequestUri!;
         var timestamp = long.Parse(captured.Headers.GetValues("X-Timestamp").Single());
 
-        Assert.Contains("currency=GBP", path);
-        Assert.Contains("from=2026-08-01", path);
+        Assert.Contains("currency=GBP", uri.Query);
         Assert.Equal(
-            RailsClient.ComputeSignature("test-secret", timestamp, "GET", path, string.Empty),
+            Venly.Backend.Common.Hmac.HmacSignature.Compute("test-secret", timestamp, "GET", uri.AbsolutePath, string.Empty),
             captured.Headers.GetValues("X-Signature").Single());
     }
 
@@ -124,7 +126,7 @@ public class RailsClientTests
             {"responseData":[{"code":"000013","name":"GTBank","type":"nuban"}]}
             """);
 
-        Assert.Equal("000013", Assert.Single(await NewClient(handler).GetBanksAsync("NGN", "NG")).Code);
+        Assert.Equal("000013", Assert.Single(await NewClient(handler).GetBanksAsync("fincra", "NGN", "NG")).Code);
     }
 
     [Fact]
@@ -139,7 +141,7 @@ public class RailsClientTests
             """,
             capture: (request, body) => { captured = request; capturedBody = body; });
 
-        var name = await NewClient(handler).ResolveAccountAsync("0123456789", "000013");
+        var name = await NewClient(handler).ResolveAccountAsync("fincra", "0123456789", "000013");
 
         Assert.Equal("A N OTHER", name.AccountHolderName);
         Assert.Equal(HttpMethod.Post, captured!.Method);
@@ -162,7 +164,7 @@ public class RailsClientTests
         // schedule, while the break it should have raised went unnoticed.
         var handler = Responding("""{"responseMessage":"nope"}""", status);
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => NewClient(handler).GetBalancesAsync());
+        await Assert.ThrowsAsync<HttpRequestException>(() => NewClient(handler).GetBalancesAsync("fincra"));
     }
 
     [Fact]
@@ -171,7 +173,7 @@ public class RailsClientTests
         var handler = Responding("""{"responseCode":200,"responseMessage":"Successful"}""");
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => NewClient(handler).GetBalancesAsync());
+            () => NewClient(handler).GetBalancesAsync("fincra"));
 
         Assert.Contains("never fetched", ex.Message);
     }
@@ -183,7 +185,7 @@ public class RailsClientTests
             new HttpClient(Responding("{}")) { BaseAddress = new Uri("https://payment.internal") },
             Options.Create(new RailsClientOptions()));
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => client.GetBalancesAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => client.GetBalancesAsync("fincra"));
 
         Assert.Contains("HmacSecret", ex.Message);
     }
@@ -218,6 +220,8 @@ public class RailsClientTests
             nameof(IRailsClient.GetStatementAsync),
             nameof(IRailsClient.GetBanksAsync),
             nameof(IRailsClient.ResolveAccountAsync),
+            // Which rails exist and what they serve: a read, and it takes no body at all.
+            nameof(IRailsClient.GetRegistryAsync),
         ];
 
         var writes = typeof(IRailsClient).GetMethods()
@@ -247,7 +251,7 @@ public class RailsClientTests
             RailsClient.BanksPath, RailsClient.ResolveAccountPath,
             RailsClient.QuotesPath, RailsClient.PayoutsPath,
             RailsClient.ConversionsPath, RailsClient.CheckoutPath,
-            RailsClient.RequeryPath("REF-1"),
+            RailsClient.RequeryPath("fincra", "REF-1"),
         })
         {
             Assert.StartsWith("/internal/payment/", path, StringComparison.Ordinal);
