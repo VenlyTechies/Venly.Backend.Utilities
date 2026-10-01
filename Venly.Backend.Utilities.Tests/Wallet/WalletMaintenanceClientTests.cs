@@ -262,14 +262,17 @@ public class WalletMaintenanceClientTests
         string? capturedBody = null;
 
         var handler = Responding(
-            """{"responseCode":200,"responseMessage":"Successful","responseData":{"examined":3,"instructed":2,"retrying":1,"missed":0,"failures":[]}}""",
+            """{"responseCode":200,"responseMessage":"Successful","responseData":{"examined":3,"instructed":2,"retrying":0,"missed":0,"unresolved":1,"moreDue":true,"failures":[]}}""",
             (request, body) => { captured = request; capturedBody = body; });
 
-        var result = await NewClient(handler).RunDueAllowancesAsync(new RunDueAllowancesRequestBody(100));
+        var result = await NewClient(handler).RunDueAllowancesAsync(new RunDueAllowancesRequestBody(100, 20));
 
-        Assert.Equal(new[] { 3, 2, 1, 0 }, new[] { result.Examined, result.Instructed, result.Retrying, result.Missed });
+        Assert.Equal(new[] { 3, 2, 0, 0, 1 },
+            new[] { result.Examined, result.Instructed, result.Retrying, result.Missed, result.Unresolved });
+        Assert.True(result.MoreDue);
         Assert.Equal("/internal/wallet/allowances/run-due", captured!.RequestUri!.AbsolutePath);
         Assert.Contains("\"batchSize\":100", capturedBody);
+        Assert.Contains("\"timeBudgetSeconds\":20", capturedBody);
     }
 
     [Fact]

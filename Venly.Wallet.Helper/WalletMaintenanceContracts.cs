@@ -106,12 +106,18 @@ public sealed record ReconcileTransfersResultBody(
     int Examined, int Completed, int Failed, int StillProcessing, List<string> Failures, int ReleasedNotFound = 0);
 
 /// <param name="BatchSize">The most allowances sent in one run, earliest due first.</param>
-public sealed record RunDueAllowancesRequestBody(int BatchSize);
+/// <param name="TimeBudgetSeconds">
+/// After this long WalletService starts no new allowance and answers <c>MoreDue</c>. Keep it under this client's
+/// HTTP timeout, so the answer arrives rather than the call giving up mid-batch.
+/// </param>
+public sealed record RunDueAllowancesRequestBody(int BatchSize, int TimeBudgetSeconds);
 
-/// <param name="Examined">Allowances due and not yet tried today.</param>
+/// <param name="Examined">Allowances taken in this call.</param>
 /// <param name="Instructed">A transfer now exists for the period.</param>
 /// <param name="Retrying">Refused; tried again tomorrow.</param>
 /// <param name="Missed">Refused on the last day of the window; moved to next month.</param>
+/// <param name="Unresolved">An earlier attempt reserved funds with no transfer recorded; left for a human.</param>
+/// <param name="MoreDue">The batch or the time budget ran out first. Call again.</param>
 /// <param name="Failures">One message per allowance that could not be run.</param>
 public sealed record RunDueAllowancesResultBody(
-    int Examined, int Instructed, int Retrying, int Missed, List<string> Failures);
+    int Examined, int Instructed, int Retrying, int Missed, int Unresolved, bool MoreDue, List<string> Failures);
