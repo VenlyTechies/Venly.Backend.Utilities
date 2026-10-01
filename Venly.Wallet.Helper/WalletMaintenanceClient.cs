@@ -31,6 +31,8 @@ public sealed class WalletMaintenanceClient(
 
     public const string ReconcileTransfersPath = "/internal/wallet/transfers/reconcile";
 
+    public const string RunDueAllowancesPath = "/internal/wallet/allowances/run-due";
+
     /// <summary>
     /// Web defaults, matching the camelCase JSON the services exchange. WalletService's envelope is serialised
     /// by ASP.NET's defaults, so a reader that used the framework defaults instead would find
@@ -129,6 +131,10 @@ public sealed class WalletMaintenanceClient(
     public Task<ReconcileTransfersResultBody> ReconcileTransfersAsync(
         ReconcileTransfersRequestBody request, CancellationToken ct = default) =>
         PostAsync<ReconcileTransfersResultBody>(ReconcileTransfersPath, request, ct);
+
+    public Task<RunDueAllowancesResultBody> RunDueAllowancesAsync(
+        RunDueAllowancesRequestBody request, CancellationToken ct = default) =>
+        PostAsync<RunDueAllowancesResultBody>(RunDueAllowancesPath, request, ct);
 
     /// <summary>
     /// Just enough of <c>RequestResponse&lt;T&gt;</c> to read the payload. Declared here rather than taking a

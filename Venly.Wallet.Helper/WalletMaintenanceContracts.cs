@@ -104,3 +104,14 @@ public sealed record ReconcileTransfersRequestBody(int MinimumAgeMinutes, int Ba
 /// <param name="ReleasedNotFound">The provider had no record of the payout past the window; released.</param>
 public sealed record ReconcileTransfersResultBody(
     int Examined, int Completed, int Failed, int StillProcessing, List<string> Failures, int ReleasedNotFound = 0);
+
+/// <param name="BatchSize">The most allowances sent in one run, earliest due first.</param>
+public sealed record RunDueAllowancesRequestBody(int BatchSize);
+
+/// <param name="Examined">Allowances due and not yet tried today.</param>
+/// <param name="Instructed">A transfer now exists for the period.</param>
+/// <param name="Retrying">Refused; tried again tomorrow.</param>
+/// <param name="Missed">Refused on the last day of the window; moved to next month.</param>
+/// <param name="Failures">One message per allowance that could not be run.</param>
+public sealed record RunDueAllowancesResultBody(
+    int Examined, int Instructed, int Retrying, int Missed, List<string> Failures);

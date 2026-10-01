@@ -256,6 +256,23 @@ public class WalletMaintenanceClientTests
     }
 
     [Fact]
+    public async Task RunDueAllowancesAsync_posts_the_batch_and_reads_the_tally()
+    {
+        HttpRequestMessage? captured = null;
+        string? capturedBody = null;
+
+        var handler = Responding(
+            """{"responseCode":200,"responseMessage":"Successful","responseData":{"examined":3,"instructed":2,"retrying":1,"missed":0,"failures":[]}}""",
+            (request, body) => { captured = request; capturedBody = body; });
+
+        var result = await NewClient(handler).RunDueAllowancesAsync(new RunDueAllowancesRequestBody(100));
+
+        Assert.Equal(new[] { 3, 2, 1, 0 }, new[] { result.Examined, result.Instructed, result.Retrying, result.Missed });
+        Assert.Equal("/internal/wallet/allowances/run-due", captured!.RequestUri!.AbsolutePath);
+        Assert.Contains("\"batchSize\":100", capturedBody);
+    }
+
+    [Fact]
     public void Every_path_is_under_internal_wallet()
     {
         // None of this surface is published at the gateway. A path that drifted onto /api would be a scheduled
@@ -269,6 +286,7 @@ public class WalletMaintenanceClientTests
             WalletMaintenanceClient.FxPositionPath,
             WalletMaintenanceClient.ReconcileConversionsPath,
             WalletMaintenanceClient.ReconcileTransfersPath,
+            WalletMaintenanceClient.RunDueAllowancesPath,
         })
         {
             Assert.StartsWith("/internal/wallet/", path, StringComparison.Ordinal);

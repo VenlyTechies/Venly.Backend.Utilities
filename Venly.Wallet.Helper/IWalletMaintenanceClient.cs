@@ -68,4 +68,11 @@ public interface IWalletMaintenanceClient
     /// </summary>
     Task<ReconcileTransfersResultBody> ReconcileTransfersAsync(
         ReconcileTransfersRequestBody request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sends the monthly allowances due today. WalletService sends each as an ordinary transfer; this client only
+    /// says "now", and cannot move money itself.
+    /// </summary>
+    Task<RunDueAllowancesResultBody> RunDueAllowancesAsync(
+        RunDueAllowancesRequestBody request, CancellationToken ct = default);
 }
