@@ -90,12 +90,17 @@ public sealed record ReconcileConversionsResultBody(
 
 /// <param name="MinimumAgeMinutes">How long after it was instructed a payout is left to its webhook.</param>
 /// <param name="BatchSize">The most transfers requeried in one run, oldest first.</param>
-public sealed record ReconcileTransfersRequestBody(int MinimumAgeMinutes, int BatchSize);
+/// <param name="ReleaseNotFoundAfterMinutes">
+/// How long after it was instructed a payout the provider says it has NO record of is released back to the
+/// sender. Zero never releases — every such transfer is left for a human.
+/// </param>
+public sealed record ReconcileTransfersRequestBody(int MinimumAgeMinutes, int BatchSize, int ReleaseNotFoundAfterMinutes = 0);
 
 /// <param name="Examined">Instructed, unsettled transfers old enough to requery.</param>
 /// <param name="Completed">The provider said paid; posted.</param>
 /// <param name="Failed">The provider said failed; the reservation was released.</param>
-/// <param name="StillProcessing">The provider has not finished; left for the next run.</param>
+/// <param name="StillProcessing">The provider has not finished, or has no record yet; left for the next run.</param>
 /// <param name="Failures">One message per transfer that could not be requeried or settled.</param>
+/// <param name="ReleasedNotFound">The provider had no record of the payout past the window; released.</param>
 public sealed record ReconcileTransfersResultBody(
-    int Examined, int Completed, int Failed, int StillProcessing, List<string> Failures);
+    int Examined, int Completed, int Failed, int StillProcessing, List<string> Failures, int ReleasedNotFound = 0);
