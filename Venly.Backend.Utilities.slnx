@@ -5,6 +5,7 @@
   <Project Path="Venly.Database.Helper/Venly.Database.Helper.csproj" />
   <Project Path="Venly.Messaging.Events/Venly.Messaging.Events.csproj" />
   <Project Path="Venly.Notification.Helper/Venly.Notification.Helper.csproj" />
+  <Project Path="Venly.Customer.Helper/Venly.Customer.Helper.csproj" />
   <Project Path="Venly.Audit.Helper/Venly.Audit.Helper.csproj" />
   <Project Path="Venly.Corridor.Helper/Venly.Corridor.Helper.csproj" />
   <Project Path="Venly.FeatureFlag.Helper/Venly.FeatureFlag.Helper.csproj" />
