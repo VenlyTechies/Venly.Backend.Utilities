@@ -61,4 +61,11 @@ public interface IWalletMaintenanceClient
     /// </summary>
     Task<ReconcileConversionsResultBody> ReconcileConversionsAsync(
         ReconcileConversionsRequestBody request, CancellationToken ct = default);
+
+    /// <summary>
+    /// The same for transfers: payouts instructed at a provider and never confirmed. WalletService requeries each
+    /// one through PaymentService and posts or fails it itself — this client still cannot settle a movement.
+    /// </summary>
+    Task<ReconcileTransfersResultBody> ReconcileTransfersAsync(
+        ReconcileTransfersRequestBody request, CancellationToken ct = default);
 }

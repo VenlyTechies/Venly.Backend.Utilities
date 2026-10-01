@@ -239,6 +239,23 @@ public class WalletMaintenanceClientTests
     }
 
     [Fact]
+    public async Task ReconcileTransfersAsync_posts_the_window_and_reads_the_tally()
+    {
+        HttpRequestMessage? captured = null;
+        string? capturedBody = null;
+
+        var handler = Responding(
+            """{"responseCode":200,"responseMessage":"Successful","responseData":{"examined":2,"completed":1,"failed":0,"stillProcessing":1,"failures":[]}}""",
+            (request, body) => { captured = request; capturedBody = body; });
+
+        var result = await NewClient(handler).ReconcileTransfersAsync(new ReconcileTransfersRequestBody(10, 50));
+
+        Assert.Equal(new[] { 2, 1, 0, 1 }, new[] { result.Examined, result.Completed, result.Failed, result.StillProcessing });
+        Assert.Equal("/internal/wallet/transfers/reconcile", captured!.RequestUri!.AbsolutePath);
+        Assert.Contains("\"minimumAgeMinutes\":10", capturedBody);
+    }
+
+    [Fact]
     public void Every_path_is_under_internal_wallet()
     {
         // None of this surface is published at the gateway. A path that drifted onto /api would be a scheduled
@@ -251,6 +268,7 @@ public class WalletMaintenanceClientTests
             WalletMaintenanceClient.SafeguardingPath,
             WalletMaintenanceClient.FxPositionPath,
             WalletMaintenanceClient.ReconcileConversionsPath,
+            WalletMaintenanceClient.ReconcileTransfersPath,
         })
         {
             Assert.StartsWith("/internal/wallet/", path, StringComparison.Ordinal);

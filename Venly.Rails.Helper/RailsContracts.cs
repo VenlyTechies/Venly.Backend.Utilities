@@ -141,6 +141,10 @@ public sealed record RailsPayoutRequestBody(
 /// document is not one that failed, and treating it as failed would release a reservation still live on their
 /// side.
 /// </param>
+/// <param name="Rate">
+/// The rate the payout EXECUTED at, destination per source, when the rail reports one — a requery's answer
+/// carries it; an initiate's does not. Null same-currency, and null when the rail gave nothing to derive it from.
+/// </param>
 public sealed record RailsPayoutAckResult(
     string Rail,
     RailsOutcome Outcome,
@@ -148,7 +152,8 @@ public sealed record RailsPayoutAckResult(
     string OurReference,
     string Status,
     bool DocumentRequired,
-    string? FailureReason) : IRailsAttempt;
+    string? FailureReason,
+    decimal? Rate = null) : IRailsAttempt;
 
 /// <param name="IntentId">The intent whose FX leg this conversion is. REQUIRED, for the same reason.</param>
 public sealed record RailsConversionRequestBody(

@@ -53,6 +53,17 @@ public class RailsClientTests
     }
 
     [Fact]
+    public async Task A_payout_requery_carries_the_executed_rate_when_the_rail_reports_one()
+    {
+        var handler = Responding(
+            """{"responseCode":200,"responseData":{"rail":"fincra","outcome":"Accepted","providerReference":"b06","ourReference":"SGI-1","status":"Successful","documentRequired":false,"failureReason":null,"rate":1865.104}}""");
+
+        var result = await NewClient(handler).RequeryPayoutAsync("fincra", "SGI-1");
+
+        Assert.Equal(1865.104m, result.Rate);
+    }
+
+    [Fact]
     public async Task Balances_come_back_in_MINOR_units_with_the_provider_named()
     {
         // Minor units because that is what the ledger speaks and PaymentService has already converted at the

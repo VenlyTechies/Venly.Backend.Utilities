@@ -87,3 +87,15 @@ public sealed record ReconcileConversionsRequestBody(int MinimumAgeMinutes, int 
 /// <param name="Failures">One message per conversion that could not be requeried or settled.</param>
 public sealed record ReconcileConversionsResultBody(
     int Examined, int Completed, int Failed, int StillProcessing, List<string> Failures);
+
+/// <param name="MinimumAgeMinutes">How long after it was instructed a payout is left to its webhook.</param>
+/// <param name="BatchSize">The most transfers requeried in one run, oldest first.</param>
+public sealed record ReconcileTransfersRequestBody(int MinimumAgeMinutes, int BatchSize);
+
+/// <param name="Examined">Instructed, unsettled transfers old enough to requery.</param>
+/// <param name="Completed">The provider said paid; posted.</param>
+/// <param name="Failed">The provider said failed; the reservation was released.</param>
+/// <param name="StillProcessing">The provider has not finished; left for the next run.</param>
+/// <param name="Failures">One message per transfer that could not be requeried or settled.</param>
+public sealed record ReconcileTransfersResultBody(
+    int Examined, int Completed, int Failed, int StillProcessing, List<string> Failures);
