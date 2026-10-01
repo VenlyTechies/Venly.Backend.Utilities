@@ -84,6 +84,17 @@ public interface IRailsClient
     Task<RailsPayoutAckResult> RequeryPayoutAsync(
         string rail, string ourReference, CancellationToken ct = default);
 
+    /// <summary>
+    /// Asks what became of a conversion, BY OUR REFERENCE, on the rail that was attempted. The safety net for a
+    /// webhook that never arrived or could not be matched. Moves nothing, so it takes no intent id.
+    /// </summary>
+    /// <param name="providerReference">
+    /// The rail's own reference, when the caller holds it. Optional: PaymentService finds it from the call it
+    /// logged when the caller does not — which is exactly the case after an initiate whose answer was lost.
+    /// </param>
+    Task<RailsConversionResult> RequeryConversionAsync(
+        string rail, string ourReference, string? providerReference, CancellationToken ct = default);
+
     /// <summary>Executes a quoted FX conversion. Carries an intent: it moves our own currency positions.</summary>
     Task<RailsConversionResult> InitiateConversionAsync(
         RailsConversionRequestBody body, CancellationToken ct = default);

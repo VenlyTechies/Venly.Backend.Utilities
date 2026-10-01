@@ -31,6 +31,27 @@ public class RailsClientTests
             };
         });
 
+    [Theory]
+    [InlineData("FCR-1", "/internal/payment/rails/conversions/SGI-1/requery?rail=fincra&providerReference=FCR-1")]
+    [InlineData(null, "/internal/payment/rails/conversions/SGI-1/requery?rail=fincra")]
+    public async Task A_conversion_requery_names_the_rail_and_the_rail_s_reference_only_when_held(
+        string? providerReference, string expected)
+    {
+        // Optional because the caller does not always have it: an initiate whose answer was lost left none, and
+        // PaymentService finds it from the call it logged.
+        HttpRequestMessage? captured = null;
+        var handler = Responding(
+            """{"responseCode":200,"responseData":{"rail":"fincra","outcome":"Accepted","providerReference":"FCR-1","ourReference":"SGI-1","status":"Successful","rate":2055.5,"failureReason":null}}""",
+            capture: (request, _) => captured = request);
+
+        var result = await NewClient(handler).RequeryConversionAsync("fincra", "SGI-1", providerReference);
+
+        Assert.Equal(HttpMethod.Post, captured!.Method);
+        Assert.Equal(expected, captured.RequestUri!.PathAndQuery);
+        Assert.Equal("Successful", result.Status);
+        Assert.Equal(2055.5m, result.Rate);
+    }
+
     [Fact]
     public async Task Balances_come_back_in_MINOR_units_with_the_provider_named()
     {
@@ -214,6 +235,7 @@ public class RailsClientTests
         string[] movesNothing =
         [
             nameof(IRailsClient.RequeryPayoutAsync),
+            nameof(IRailsClient.RequeryConversionAsync),
             nameof(IRailsClient.GenerateQuoteAsync),
             nameof(IRailsClient.CreateCheckoutAsync),
             nameof(IRailsClient.GetBalancesAsync),
@@ -252,6 +274,7 @@ public class RailsClientTests
             RailsClient.QuotesPath, RailsClient.PayoutsPath,
             RailsClient.ConversionsPath, RailsClient.CheckoutPath,
             RailsClient.RequeryPath("fincra", "REF-1"),
+            RailsClient.ConversionRequeryPath("fincra", "REF-1", "FCR-1"),
         })
         {
             Assert.StartsWith("/internal/payment/", path, StringComparison.Ordinal);

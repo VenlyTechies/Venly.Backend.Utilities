@@ -40,6 +40,13 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
     public static string RequeryPath(string rail, string ourReference) =>
         $"{PayoutsPath}/{Uri.EscapeDataString(ourReference)}/requery?rail={Uri.EscapeDataString(rail)}";
 
+    /// <summary>A conversion's requery: by OUR reference, on the rail attempted, with the rail's reference if held.</summary>
+    public static string ConversionRequeryPath(string rail, string ourReference, string? providerReference) =>
+        $"{ConversionsPath}/{Uri.EscapeDataString(ourReference)}/requery?rail={Uri.EscapeDataString(rail)}"
+        + (string.IsNullOrWhiteSpace(providerReference)
+            ? string.Empty
+            : $"&providerReference={Uri.EscapeDataString(providerReference)}");
+
     /// <summary>Not under /rails: the rate capture is its own surface, reached through
     /// <see cref="IRatesMaintenanceClient"/> rather than the read-only rails interface.</summary>
     public const string SnapshotRatesPath = "/internal/payment/rates/snapshot";
@@ -76,6 +83,11 @@ public sealed class RailsClient(HttpClient httpClient, IOptions<RailsClientOptio
     public Task<RailsPayoutAckResult> RequeryPayoutAsync(
         string rail, string ourReference, CancellationToken ct = default) =>
         SendAsync<RailsPayoutAckResult>(HttpMethod.Post, RequeryPath(rail, ourReference), null, ct);
+
+    public Task<RailsConversionResult> RequeryConversionAsync(
+        string rail, string ourReference, string? providerReference, CancellationToken ct = default) =>
+        SendAsync<RailsConversionResult>(
+            HttpMethod.Post, ConversionRequeryPath(rail, ourReference, providerReference), null, ct);
 
     public Task<RailsConversionResult> InitiateConversionAsync(
         RailsConversionRequestBody body, CancellationToken ct = default) =>

@@ -72,3 +72,18 @@ public sealed record StoreRateSnapshotResultBody(bool Stored, int MarginBps);
 /// <param name="Skipped">Alerts crossed but already told within the day.</param>
 /// <param name="Failures">One message per alert whose notification could not be sent.</param>
 public sealed record RateAlertRunResultBody(int Fired, int Skipped, List<string> Failures);
+
+/// <param name="MinimumAgeMinutes">
+/// How long after it was instructed a conversion is left to its webhook before it is requeried. A webhook usually
+/// lands in seconds; asking sooner only races it.
+/// </param>
+/// <param name="BatchSize">The most conversions requeried in one run, oldest first.</param>
+public sealed record ReconcileConversionsRequestBody(int MinimumAgeMinutes, int BatchSize);
+
+/// <param name="Examined">Instructed, unsettled conversions old enough to requery.</param>
+/// <param name="Completed">The provider said successful; posted.</param>
+/// <param name="Failed">The provider said failed; the reservation was released.</param>
+/// <param name="StillProcessing">The provider has not finished; left for the next run.</param>
+/// <param name="Failures">One message per conversion that could not be requeried or settled.</param>
+public sealed record ReconcileConversionsResultBody(
+    int Examined, int Completed, int Failed, int StillProcessing, List<string> Failures);

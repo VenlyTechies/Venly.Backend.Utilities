@@ -50,4 +50,15 @@ public interface IWalletMaintenanceClient
     /// It fires on the DISPLAYED rate, since that is the number the customer set the alert against.</para>
     /// </summary>
     Task<RateAlertRunResultBody> EvaluateRateAlertsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Settles conversions that were instructed at a provider and never confirmed — a webhook lost, unmatched,
+    /// or an initiate whose answer never came back. WalletService requeries each one through PaymentService
+    /// and posts or fails it itself.
+    ///
+    /// <para>The settling happens THERE, not here: this client must never be able to confirm a movement, so the
+    /// scheduler asks WalletService to reconcile and WalletService decides what the provider's answer means.</para>
+    /// </summary>
+    Task<ReconcileConversionsResultBody> ReconcileConversionsAsync(
+        ReconcileConversionsRequestBody request, CancellationToken ct = default);
 }
