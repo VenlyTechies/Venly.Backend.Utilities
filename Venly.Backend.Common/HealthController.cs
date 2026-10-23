@@ -23,8 +23,7 @@ public sealed record HealthResponse(string Status);
 /// <para>Anonymous, and published anonymously at the edge. A probe, a load balancer and an uptime monitor have
 /// no token to present. The cost is that anyone who reaches the edge can tell which services are up, so this
 /// returns the aggregate status and NOTHING else -- no check names, no exception text, no versions, no
-/// durations. The detailed view stays on the container's own port and on the Development-only
-/// <c>/dev/{service}/health</c> passthrough.</para>
+/// durations. The detailed view stays on the container's own port.</para>
 ///
 /// <para>Derives from <see cref="BaseController"/> rather than <see cref="ClientController"/> or
 /// <see cref="ServiceController"/>: the caller is neither a person nor a service holding a secret.</para>
