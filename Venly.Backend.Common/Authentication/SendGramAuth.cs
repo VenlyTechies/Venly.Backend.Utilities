@@ -79,20 +79,53 @@ public static class SendGramAuth
                 + "this service is rejected.");
         }
 
+        // DEV-ONLY ESCAPE HATCH. Normal operation fetches the signing keys from AuthService's discovery
+        // document at MetadataAddress. Where that address is unreachable (local work against an AuthService
+        // whose JWKS lives behind a cluster-internal host), a JWKS JSON can be supplied inline and metadata is
+        // skipped. This is OFF unless BOTH DevStaticValidation is true AND DevSigningKeysJwks is non-empty, so a
+        // deploy that sets neither behaves exactly as before. Everything else about validation — issuer,
+        // lifetime, no audience, zero skew — is identical on both paths, so a token accepted in dev is accepted
+        // the same way in production.
+        var devStaticValidation = section.GetValue("DevStaticValidation", false);
+        var devJwks = section["DevSigningKeysJwks"];
+        var useDevKeys = devStaticValidation && !string.IsNullOrWhiteSpace(devJwks);
+
         var metadataAddress = section["MetadataAddress"];
-        if (string.IsNullOrWhiteSpace(metadataAddress))
+        if (string.IsNullOrWhiteSpace(metadataAddress) && !useDevKeys)
         {
             throw new InvalidOperationException(
                 $"{ConfigurationSectionName}:MetadataAddress is not configured. This is where this service "
                 + "fetches AuthService's discovery document to get the signing keys, and it is an address "
-                + "routable from THIS process — not necessarily the issuer.");
+                + "routable from THIS process — not necessarily the issuer. (Alternatively, set "
+                + $"{ConfigurationSectionName}:DevStaticValidation=true and supply "
+                + $"{ConfigurationSectionName}:DevSigningKeysJwks for local work without reachable metadata.)");
+        }
+
+        IList<SecurityKey> devSigningKeys = [];
+        if (useDevKeys)
+        {
+            // Parse the JWKS once at startup. A malformed dev JWKS should fail loudly here, not silently reject
+            // every token at runtime.
+            devSigningKeys = new JsonWebKeySet(devJwks!).GetSigningKeys();
+            if (devSigningKeys.Count == 0)
+                throw new InvalidOperationException(
+                    $"{ConfigurationSectionName}:DevSigningKeysJwks parsed to zero signing keys.");
         }
 
         services.AddAuthentication()
             .AddJwtBearer(BearerScheme, jwt =>
             {
-                jwt.MetadataAddress = metadataAddress;
-                jwt.RequireHttpsMetadata = section.GetValue("RequireHttpsMetadata", true);
+                if (useDevKeys)
+                {
+                    // No metadata fetch: validate against the supplied keys directly.
+                    jwt.RequireHttpsMetadata = false;
+                }
+                else
+                {
+                    // Non-null here: the guard above throws when metadata is absent and dev keys are not used.
+                    jwt.MetadataAddress = metadataAddress!;
+                    jwt.RequireHttpsMetadata = section.GetValue("RequireHttpsMetadata", true);
+                }
 
                 // Keep the claim names the token actually carries. The default inbound map renames 'sub' to the
                 // WS-Federation nameidentifier URI, so FindFirstValue("sub") comes back null and an authorised
@@ -115,6 +148,10 @@ public static class SendGramAuth
                     // twenty.
                     ClockSkew = TimeSpan.Zero,
                 };
+
+                // In dev-keys mode the keys come from config, not the metadata endpoint.
+                if (useDevKeys)
+                    jwt.TokenValidationParameters.IssuerSigningKeys = devSigningKeys;
             });
 
         services.AddAuthorizationBuilder()
