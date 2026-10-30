@@ -72,7 +72,9 @@ public sealed class AuditPipelineBehaviour<TRequest, TResponse>(
                 SourceIpHash: actor.SourceIpHash,
                 CorrelationId: actor.CorrelationId,
                 OccurredAt: time.GetUtcNow(),
-                TenantId: actor.TenantId,
+                // The scope wins here too: an operator acting ON a tenant names it; otherwise it is the
+                // caller's own tenant (if the product has tenants at all).
+                TenantId: scope.TenantId ?? actor.TenantId,
                 SourceIp: actor.SourceIp));
         }
         catch (Exception ex)

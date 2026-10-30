@@ -96,6 +96,17 @@ public class AuditPipelineBehaviourTests
     }
 
     [Fact]
+    public async Task A_tenant_set_by_the_handler_wins_over_the_actors()
+    {
+        var (publisher, scope, behaviour) = Build<AuditedCommand>(StaffActor with { TenantId = null });
+
+        await behaviour.Handle(new AuditedCommand("CUS1"), Handler(sideEffect: () => scope.SetTenantId("TN_TARGET")),
+            CancellationToken.None);
+
+        Assert.Equal("TN_TARGET", Assert.Single(publisher.Entries).TenantId);
+    }
+
+    [Fact]
     public async Task A_command_that_is_not_auditable_publishes_nothing()
     {
         var (publisher, _, behaviour) = Build<PlainCommand>();

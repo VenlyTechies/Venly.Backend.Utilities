@@ -13,7 +13,11 @@ public sealed class AuditScope : IAuditScope
     public string? EmergencyAccessId { get; private set; }
     public bool Suppressed { get; private set; }
 
+    public string? TenantId { get; private set; }
+
     public void SetEntityId(string? entityId) => EntityId = entityId;
+
+    public void SetTenantId(string? tenantId) => TenantId = tenantId;
 
     public void SetBefore(object? value) => BeforeValue = ToJson(value);
 

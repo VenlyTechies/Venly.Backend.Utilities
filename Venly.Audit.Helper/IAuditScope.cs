@@ -20,7 +20,16 @@ public interface IAuditScope
     /// <summary>True when the handler decided this particular execution should not be audited.</summary>
     bool Suppressed { get; }
 
+    /// <summary>
+    /// The tenant the action was ABOUT, when that is not the caller's own tenant — an operator approving a
+    /// tenant's live access, suspending a tenant. Wins over the actor's tenant. Default: not set.
+    /// </summary>
+    string? TenantId => null;
+
     void SetEntityId(string? entityId);
+
+    /// <summary>Sets <see cref="TenantId"/>. Default implementation ignores it (single-tenant products).</summary>
+    void SetTenantId(string? tenantId) { }
 
     /// <summary>Serialises <paramref name="value"/> to JSON for the jsonb column. A null leaves the column
     /// null rather than writing the JSON literal <c>null</c>.</summary>
