@@ -83,6 +83,19 @@ public class AuditPipelineBehaviourTests
     }
 
     [Fact]
+    public async Task The_actors_tenant_and_source_ip_are_carried_onto_the_entry()
+    {
+        var (publisher, _, behaviour) = Build<AuditedCommand>(
+            StaffActor with { TenantId = "TN_1", SourceIp = "102.89.34.17" });
+
+        await behaviour.Handle(new AuditedCommand("CUS1"), Handler(), CancellationToken.None);
+
+        var entry = Assert.Single(publisher.Entries);
+        Assert.Equal("TN_1", entry.TenantId);
+        Assert.Equal("102.89.34.17", entry.SourceIp);
+    }
+
+    [Fact]
     public async Task A_command_that_is_not_auditable_publishes_nothing()
     {
         var (publisher, _, behaviour) = Build<PlainCommand>();

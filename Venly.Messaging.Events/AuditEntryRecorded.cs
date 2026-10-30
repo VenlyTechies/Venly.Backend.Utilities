@@ -25,4 +25,9 @@ public sealed record AuditEntryRecorded(
     string? DeniedPermissionKey,
     string? SourceIpHash,
     string? CorrelationId,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    // Optional, appended so every existing producer and consumer is unaffected: the tenant the action was
+    // scoped to, and the caller's raw source IP, for multi-tenant products whose audit log is read per tenant
+    // and must show the address (Authet TN-ACC-04). SendGram leaves both null and records only the hash.
+    string? TenantId = null,
+    string? SourceIp = null);

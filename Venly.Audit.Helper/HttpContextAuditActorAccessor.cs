@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using Venly.Backend.Common.Authentication;
 using Venly.Messaging.Events;
 
@@ -16,8 +17,11 @@ namespace Venly.Audit.Helper;
 /// is System, a context with no principal is Service, and an unrecognised principal type is Service. None of
 /// them can invent a staff actor.</para>
 /// </summary>
-public sealed class HttpContextAuditActorAccessor(IHttpContextAccessor accessor) : IAuditActorAccessor
+public sealed class HttpContextAuditActorAccessor(
+    IHttpContextAccessor accessor, IOptions<AuditActorHeaderOptions>? headerOptions = null) : IAuditActorAccessor
 {
+    private readonly AuditActorHeaderOptions _headers = headerOptions?.Value ?? new AuditActorHeaderOptions();
+
     public AuditActor Current()
     {
         var context = accessor.HttpContext;
@@ -30,16 +34,11 @@ public sealed class HttpContextAuditActorAccessor(IHttpContextAccessor accessor)
 
         var headers = context.Request.Headers;
 
-        var id = Value(headers[PrincipalHeaders.Id]);
-        var type = Value(headers[PrincipalHeaders.Type]);
-        var permission = Value(headers[PrincipalHeaders.Permission]);
+        var id = Value(headers[_headers.IdHeader]);
+        var type = Value(headers[_headers.TypeHeader]);
+        var permission = Value(headers[_headers.PermissionHeader]);
 
-        var actorType = type switch
-        {
-            SendGramAuth.StaffPrincipal => AuditActorType.Staff,
-            SendGramAuth.CustomerPrincipal => AuditActorType.Customer,
-            _ => AuditActorType.Service,
-        };
+        var actorType = MapType(type);
 
         var snapshot = permission is null
             ? null
@@ -53,8 +52,30 @@ public sealed class HttpContextAuditActorAccessor(IHttpContextAccessor accessor)
             Type: actorType,
             Id: actorType == AuditActorType.Service ? null : id,
             PermissionsSnapshot: snapshot,
-            SourceIpHash: Value(headers[PrincipalHeaders.SourceIpHash]),
-            CorrelationId: Value(headers[PrincipalHeaders.CorrelationId]));
+            SourceIpHash: Value(headers[_headers.SourceIpHashHeader]),
+            CorrelationId: Value(headers[_headers.CorrelationIdHeader]),
+            TenantId: _headers.TenantIdHeader is null ? null : Value(headers[_headers.TenantIdHeader]),
+            SourceIp: _headers.SourceIpHeader is null ? null : Value(headers[_headers.SourceIpHeader]));
+    }
+
+    private AuditActorType MapType(string? type)
+    {
+        if (_headers.TypeMap.Count == 0)
+        {
+            return type switch
+            {
+                SendGramAuth.StaffPrincipal => AuditActorType.Staff,
+                SendGramAuth.CustomerPrincipal => AuditActorType.Customer,
+                _ => AuditActorType.Service,
+            };
+        }
+
+        // Re-keyed case-insensitively here because configuration binding builds its own dictionary.
+        foreach (var (key, value) in _headers.TypeMap)
+            if (string.Equals(key, type, StringComparison.OrdinalIgnoreCase))
+                return value;
+
+        return AuditActorType.Service;
     }
 
     private static string? Value(Microsoft.Extensions.Primitives.StringValues values)

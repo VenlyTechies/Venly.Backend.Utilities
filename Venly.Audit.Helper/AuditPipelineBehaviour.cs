@@ -71,7 +71,9 @@ public sealed class AuditPipelineBehaviour<TRequest, TResponse>(
                 DeniedPermissionKey: null,
                 SourceIpHash: actor.SourceIpHash,
                 CorrelationId: actor.CorrelationId,
-                OccurredAt: time.GetUtcNow()));
+                OccurredAt: time.GetUtcNow(),
+                TenantId: actor.TenantId,
+                SourceIp: actor.SourceIp));
         }
         catch (Exception ex)
         {

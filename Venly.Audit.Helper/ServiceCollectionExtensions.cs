@@ -34,6 +34,10 @@ public static class ServiceCollectionExtensions
         services.Configure<AuditPublisherOptions>(
             configuration.GetSection(AuditPublisherOptions.SectionName));
 
+        // Which headers the actor accessor reads. Unconfigured = SendGram's header contract.
+        services.Configure<AuditActorHeaderOptions>(
+            configuration.GetSection(AuditActorHeaderOptions.SectionName));
+
         // Needed by HttpContextAuditActorAccessor. TryAdd because a web host has usually added it already.
         services.AddHttpContextAccessor();
         services.TryAddSingleton(TimeProvider.System);
