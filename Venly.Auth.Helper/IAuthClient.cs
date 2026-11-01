@@ -12,4 +12,13 @@ public interface IAuthClient
 
     Task<TokenPair?> IssueCustomerTokensAsync(
         string customerId, string verificationTier, string deviceId, string riskLevel, CancellationToken ct);
+
+    /// <summary>
+    /// Redeems a refresh token (the standard <c>refresh_token</c> grant) for a new pair. AuthService rotates the
+    /// refresh token on every use and revokes the whole chain when a redeemed one is replayed, so callers must
+    /// redeem each refresh token once and keep the new one. Null when AuthService refuses it (expired, revoked,
+    /// reused). The default (for implementations that predate refresh) refuses everything.
+    /// </summary>
+    Task<TokenPair?> RefreshTokensAsync(string refreshToken, CancellationToken ct) =>
+        Task.FromResult<TokenPair?>(null);
 }

@@ -29,25 +29,40 @@ public class AuthClient(HttpClient http, IOptions<AuthClientOptions> options) : 
             + $"&risk_level={Uri.EscapeDataString(riskLevel)}",
             ct);
 
-    private async Task<TokenPair?> PostAsync(string body, CancellationToken ct)
+    /// <summary>
+    /// The standard refresh grant. Not HMAC-signed: AuthService treats the refresh token itself as the credential
+    /// for this grant (and needs no client_id), so there is no assertion to sign.
+    /// </summary>
+    public Task<TokenPair?> RefreshTokensAsync(string refreshToken, CancellationToken ct)
     {
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return Task.FromResult<TokenPair?>(null);
+        return PostAsync(
+            $"grant_type=refresh_token&refresh_token={Uri.EscapeDataString(refreshToken)}", ct, sign: false);
+    }
 
-        // A unique nonce per request. Without it a captured signed assertion is replayable for the whole
-        // timestamp tolerance window and each replay mints a fresh token pair — the leg AdminService's own
-        // gateway contract closed with RedisHmacNonceStore, previously left open here.
-        var nonce = Guid.NewGuid().ToString("N");
-
+    private async Task<TokenPair?> PostAsync(string body, CancellationToken ct, bool sign = true)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Post, TokenPath)
         {
             Content = new StringContent(body, Encoding.UTF8, "application/x-www-form-urlencoded"),
         };
 
-        request.Headers.Add("X-Timestamp", timestamp.ToString());
-        request.Headers.Add("X-Nonce", nonce);
-        request.Headers.Add(
-            "X-Signature",
-            HmacSignature.Compute(options.Value.HmacSecret, timestamp, "POST", TokenPath, body, nonce));
+        if (sign)
+        {
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            // A unique nonce per request. Without it a captured signed assertion is replayable for the whole
+            // timestamp tolerance window and each replay mints a fresh token pair — the leg AdminService's own
+            // gateway contract closed with RedisHmacNonceStore, previously left open here.
+            var nonce = Guid.NewGuid().ToString("N");
+
+            request.Headers.Add("X-Timestamp", timestamp.ToString());
+            request.Headers.Add("X-Nonce", nonce);
+            request.Headers.Add(
+                "X-Signature",
+                HmacSignature.Compute(options.Value.HmacSecret, timestamp, "POST", TokenPath, body, nonce));
+        }
 
         using var response = await http.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
