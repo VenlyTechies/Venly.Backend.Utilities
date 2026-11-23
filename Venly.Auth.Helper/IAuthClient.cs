@@ -14,6 +14,14 @@ public interface IAuthClient
         string customerId, string verificationTier, string deviceId, string riskLevel, CancellationToken ct);
 
     /// <summary>
+    /// Mints a token pair for an Eventspaces person the caller (Eventspaces IdentityService) has already
+    /// authenticated. <paramref name="roles"/> are GLOBAL role codes only; venue, supplier and event scoped
+    /// grants are never asserted and are re-checked by IdentityService per request.
+    /// </summary>
+    Task<TokenPair?> IssueEventspacesTokensAsync(
+        string userId, string? deviceId, IReadOnlyList<string> roles, CancellationToken ct) =>
+        Task.FromResult<TokenPair?>(null);
+    /// <summary>
     /// Redeems a refresh token (the standard <c>refresh_token</c> grant) for a new pair. AuthService rotates the
     /// refresh token on every use and revokes the whole chain when a redeemed one is replayed, so callers must
     /// redeem each refresh token once and keep the new one. Null when AuthService refuses it (expired, revoked,

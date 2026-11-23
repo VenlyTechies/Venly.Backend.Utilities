@@ -9,6 +9,7 @@ public class AuthClient(HttpClient http, IOptions<AuthClientOptions> options) : 
 {
     private const string TokenPath = "/connect/token";
     private const string StaffGrant = "urn:sendgram:grant-type:verified-staff-assertion";
+    private const string EventspacesGrant = "urn:sendgram:grant-type:verified-eventspaces-assertion";
     private const string CustomerGrant = "urn:sendgram:grant-type:verified-customer-assertion";
 
     public Task<TokenPair?> IssueStaffTokensAsync(
@@ -19,6 +20,14 @@ public class AuthClient(HttpClient http, IOptions<AuthClientOptions> options) : 
             + $"&roles={Uri.EscapeDataString(string.Join(',', roles))}",
             ct);
 
+    public Task<TokenPair?> IssueEventspacesTokensAsync(
+        string userId, string? deviceId, IReadOnlyList<string> roles, CancellationToken ct) =>
+        PostAsync(
+            $"grant_type={Uri.EscapeDataString(EventspacesGrant)}"
+            + $"&user_id={Uri.EscapeDataString(userId)}"
+            + $"&device_id={Uri.EscapeDataString(deviceId ?? string.Empty)}"
+            + $"&roles={Uri.EscapeDataString(string.Join(',', roles))}",
+            ct);
     public Task<TokenPair?> IssueCustomerTokensAsync(
         string customerId, string verificationTier, string deviceId, string riskLevel, CancellationToken ct) =>
         PostAsync(

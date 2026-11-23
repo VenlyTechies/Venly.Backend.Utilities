@@ -46,6 +46,8 @@ public static class SendGramAuth
     public const string StaffPrincipal = "staff";
 
     public const string CustomerPrincipal = "customer";
+    /// <summary>An Eventspaces person. See AuthService's SendGramClaimTypes.PrincipalTypeEventspacesUser.</summary>
+    public const string EventspacesUserPrincipal = "eventspaces_user";
 
     /// <summary>Requires a valid token whose <c>principal_type</c> is <c>staff</c>.</summary>
     public const string StaffOnlyPolicy = "SendGram.StaffOnly";
@@ -53,6 +55,8 @@ public static class SendGramAuth
     /// <summary>Requires a valid token whose <c>principal_type</c> is <c>customer</c>.</summary>
     public const string CustomerOnlyPolicy = "SendGram.CustomerOnly";
 
+    /// <summary>Requires a valid token whose <c>principal_type</c> is <c>eventspaces_user</c>.</summary>
+    public const string EventspacesUserOnlyPolicy = "SendGram.EventspacesUserOnly";
     public const string ConfigurationSectionName = "Authorization";
 
     /// <summary>
@@ -162,7 +166,11 @@ public static class SendGramAuth
             .AddPolicy(CustomerOnlyPolicy, policy => policy
                 .AddAuthenticationSchemes(BearerScheme)
                 .RequireAuthenticatedUser()
-                .RequireClaim(PrincipalTypeClaim, CustomerPrincipal));
+                .RequireClaim(PrincipalTypeClaim, CustomerPrincipal))
+            .AddPolicy(EventspacesUserOnlyPolicy, policy => policy
+                .AddAuthenticationSchemes(BearerScheme)
+                .RequireAuthenticatedUser()
+                .RequireClaim(PrincipalTypeClaim, EventspacesUserPrincipal));
 
         return services;
     }
