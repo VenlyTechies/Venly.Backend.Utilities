@@ -41,7 +41,10 @@ public sealed class AuditPipelineBehaviour<TRequest, TResponse>(
         if (request is not IAuditable auditable)
             return response;
 
-        if (response is null || response.ResponseCode >= 400)
+        // A null response (a handler that returns nothing) is passed through unaudited, as before.
+        if (response is null)
+            return response!;
+        if (response.ResponseCode >= 400)
             return response;
 
         if (scope.Suppressed)
