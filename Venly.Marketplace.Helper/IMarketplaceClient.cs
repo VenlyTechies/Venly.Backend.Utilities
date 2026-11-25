@@ -15,7 +15,8 @@ public interface IMarketplaceClient
 }
 public record BookingInfo(
     string BookingId, string VenueId, string SpaceId, string OrganiserUserId, string EventDate, string State, string Mode,
-    long TotalKobo, long FeeKobo, long DepositKobo, long PaidKobo, long SubtotalKobo, long TaxKobo, string? CancelledBy, string? OrganisationId);
+    long TotalKobo, long FeeKobo, long DepositKobo, long PaidKobo, long SubtotalKobo, long TaxKobo, string? CancelledBy, string? OrganisationId,
+    DateTime? HoldExpiresAt = null);
 public enum LookupStatus { Found, NotFound, Unavailable }
 public record BookingLookup(LookupStatus Status, BookingInfo? Booking);
 public record VenueInfo(string VenueId, string OrganisationId, string Name, string Status);
