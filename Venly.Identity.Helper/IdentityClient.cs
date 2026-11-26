@@ -87,6 +87,29 @@ public sealed class IdentityClient(
             return new Dictionary<string, string?>();
         }
     }
+    public async Task<IReadOnlyList<VenueRole>?> ListVenueRolesAsync(string userId, CancellationToken ct)
+    {
+        try
+        {
+            var body = await PostAsync("/internal/users/venue-roles", new { userId }, ct);
+            if (body is null)
+                return null;
+            using var doc = JsonDocument.Parse(body);
+            if (!doc.RootElement.TryGetProperty("responseData", out var data) || !data.TryGetProperty("venues", out var venues) || venues.ValueKind != JsonValueKind.Array)
+                return null;
+            var result = new List<VenueRole>();
+            foreach (var v in venues.EnumerateArray())
+                if (v.TryGetProperty("venueId", out var id) && v.TryGetProperty("role", out var role) && id.GetString() is { } i && role.GetString() is { } r)
+                    result.Add(new VenueRole(i, r));
+            return result;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+        {
+            if (ct.IsCancellationRequested) throw;
+            logger.LogWarning(ex, "Listing venue roles at IdentityService failed.");
+            return null;
+        }
+    }
     public async Task<string?> GetBillingEmailAsync(string userId, CancellationToken ct)
     {
         try

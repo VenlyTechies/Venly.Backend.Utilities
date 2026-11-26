@@ -32,7 +32,13 @@ public interface IIdentityClient
     /// IdentityService cannot answer: a checkout cannot start without one, and that is a refusal, not a guess.
     /// </summary>
     Task<string?> GetBillingEmailAsync(string userId, CancellationToken ct);
+    /// <summary>
+    /// The venues a person holds a live role on (owner, manager or viewer) and the role. Null when IdentityService cannot
+    /// answer, so a caller can tell "none" from "not known" and fall back to what it knows itself.
+    /// </summary>
+    Task<IReadOnlyList<VenueRole>?> ListVenueRolesAsync(string userId, CancellationToken ct);
 }
+public record VenueRole(string VenueId, string Role);
 public enum PermissionDecision { Allowed, Denied, Unavailable }
 /// <param name="Type">venue, supplier or planner_agency.</param>
 /// <param name="ReferenceKey">The caller's own stable key for this organisation, for example "venue:VEN123".</param>
